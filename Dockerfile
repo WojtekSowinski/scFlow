@@ -2,11 +2,14 @@
 
 ## Use rstudio installs binaries from RStudio's RSPM service by default,
 ## Uses the latest stable ubuntu, R and Bioconductor versions. Created on unbuntu 20.04, R 4.3 and BiocManager 3.18
-FROM rocker/rstudio:4.3
+FROM rocker/rstudio:4.3 AS build
 
+## Re-enable apt cache to use cache mounts
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 ## Add packages dependencies
-RUN apt-get update \
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update \
 	&& apt-get install -y --no-install-recommends apt-utils \
 	&& apt-get install -y --no-install-recommends \
 	## Basic deps
@@ -97,21 +100,21 @@ RUN apt-get update \
 	## qpdf needed to stop R CMD Check warning
 	qpdf \
 	gcc \
-	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN pip install stratocumulus \
+RUN --mount=type=cache,target=/root/.cache/pip \
+pip install stratocumulus \
 && curl https://sdk.cloud.google.com > install.sh \
 && bash install.sh --disable-prompts \
 && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
 -o "awscliv2.zip" \
 && unzip awscliv2.zip \
 && ./aws/install \
-&& rm -rf awscliv2.zip \
-&& rm -rf /tmp/*
+&& rm -rf awscliv2.zip install.sh /tmp/*
 
 
-RUN install2.r -e -t source \
+RUN --mount=type=cache,target=/tmp/downloaded_packages \
+install2.r -e -t source \
 Matrix \
 argparse \
 assertthat \
@@ -160,7 +163,6 @@ RcppParallel \
 RcppProgress \
 remotes \
 rlang \
-rliger \
 rmarkdown \
 Rtsne \
 scales \
@@ -180,17 +182,17 @@ UpSetR \
 utils \
 vroom \
 WebGestaltR \
-apcluster \
-&& rm -rf /tmp/downloaded_packages
+apcluster
 
 ## Install Bioconductor packages
 COPY ./misc/requirements-bioc.R .
-RUN Rscript -e 'requireNamespace("BiocManager"); BiocManager::install(ask=F);' \
-&& Rscript requirements-bioc.R \
-&& rm -rf /tmp/downloaded_packages
+RUN --mount=type=cache,target=/tmp/downloaded_packages \
+Rscript -e 'requireNamespace("BiocManager"); BiocManager::install(ask=F);' \
+&& Rscript requirements-bioc.R
 
 ## Install from GH the following
-RUN installGithub.r NathanSkene/EWCE \
+RUN --mount=type=cache,target=/tmp/downloaded_packages \
+installGithub.r NathanSkene/EWCE \
 chris-mcginnis-ucsf/DoubletFinder \
 ropensci/plotly \
 cole-trapnell-lab/monocle3 \
@@ -198,16 +200,20 @@ theislab/kBET \
 jlmelville/uwot \
 hhoeflin/hdf5r \
 ropensci/bib2df \
-cvarrichio/Matrix.utils \
-&& rm -rf /tmp/downloaded_packages
+cvarrichio/Matrix.utils
+
+RUN --mount=type=cache,target=/tmp/downloaded_packages \
+install2.r -e -t source \
+rliger
 
 ## Install scFlow package
 # Copy description
 WORKDIR scFlow
-ADD . .
 
-# Run R CMD check - will fail with any errors or warnings
-RUN Rscript -e "devtools::check(vignettes = FALSE)"
-# Install R package from source
-RUN Rscript -e "remotes::install_local()"
-RUN rm -rf *
+# Run R CMD check, install package from source - will fail with any errors or warnings
+RUN --mount=type=bind,target=.,source=. \
+Rscript -e "devtools::check(vignettes = FALSE)" \
+&& Rscript -e "remotes::install_local()"
+
+FROM scratch AS release
+COPY --from=build / /
