@@ -12,94 +12,29 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get update \
 	&& apt-get install -y --no-install-recommends apt-utils \
 	&& apt-get install -y --no-install-recommends \
-	## Basic deps
-	gdb \
-	libxml2-dev \
-	python3-pip \
-	libz-dev \
-	liblzma-dev \
-	libbz2-dev \
-	libpng-dev \
-	libgit2-dev \
-	## sys deps from bioc_full
-	pkg-config \
-	fortran77-compiler \
-	byacc \
-	automake \
-	curl \
-	## This section installs libraries
-	libpcre2-dev \
-	libnetcdf-dev \
-	libhdf5-serial-dev \
-	libfftw3-dev \
-	libopenbabel-dev \
-	libopenmpi-dev \
-	libxt-dev \
-	libudunits2-dev \
-	libgeos-dev \
-	libproj-dev \
-	libcairo2-dev \
-	libtiff5-dev \
-	libreadline-dev \
-	libgsl-dev \
-	libgslcblas0 \
-	libgtk2.0-dev \
-	libgl1-mesa-dev \
-	libglu1-mesa-dev \
-	libgmp3-dev \
-	libhdf5-dev \
-	libncurses-dev \
-	libbz2-dev \
-	libxpm-dev \
-	liblapack-dev \
-	libv8-dev \
-	libgtkmm-2.4-dev \
-	libmpfr-dev \
-	libmodule-build-perl \
-	libapparmor-dev \
-	libprotoc-dev \
-	librdf0-dev \
-	libmagick++-dev \
-	libsasl2-dev \
-	libpoppler-cpp-dev \
-	libprotobuf-dev \
-	libpq-dev \
-	libperl-dev \
-	## software - perl extentions and modules
-	libarchive-extract-perl \
-	libfile-copy-recursive-perl \
-	libcgi-pm-perl \
-	libdbi-perl \
-	libdbd-mysql-perl \
-	libxml-simple-perl \
-	libmysqlclient-dev \
-	default-libmysqlclient-dev \
-	libgdal-dev \
-	## new libs
-	libglpk-dev \
-	## Databases and other software
-	sqlite \
-	openmpi-bin \
-	mpi-default-bin \
-	openmpi-common \
-	openmpi-doc \
-	tcl8.6-dev \
-	tk-dev \
-	default-jdk \
-	imagemagick \
-	tabix \
-	ggobi \
-	graphviz \
-	protobuf-compiler \
-	jags \
-	## Additional resources
-	xfonts-100dpi \
-	xfonts-75dpi \
-	biber \
-	libsbml5-dev \
-	## qpdf needed to stop R CMD Check warning
-	qpdf \
-	gcc \
+        cmake \
+        gdal-bin \
+        libcurl4-openssl-dev \
+        libfontconfig1-dev \
+        libfreetype6-dev \
+        libgdal-dev \
+        libgeos-dev \
+        libglpk-dev \
+        libhdf5-dev \
+        libicu-dev \
+        libpng-dev \
+        libproj-dev \
+        libsqlite3-dev \
+        libssl-dev \
+        libxml2-dev \
+        make \
+        pandoc \
+        perl \
+        python3 \
+        zlib1g-dev \
+        pip \
+        curl \
+        unzip \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -114,7 +49,7 @@ pip install stratocumulus \
 
 
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
-install2.r -e -t source \
+install2.r -e -n -1 -s \
 Matrix \
 argparse \
 assertthat \
@@ -190,30 +125,34 @@ RUN --mount=type=cache,target=/tmp/downloaded_packages \
 Rscript -e 'requireNamespace("BiocManager"); BiocManager::install(ask=F);' \
 && Rscript requirements-bioc.R
 
+RUN --mount=type=cache,target=/var/cache/apt \
+apt-get update && apt-get install -y --no-install-recommends patch
+
 ## Install from GH the following
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
-installGithub.r NathanSkene/EWCE \
+installGithub.r \
 chris-mcginnis-ucsf/DoubletFinder \
 ropensci/plotly \
 cole-trapnell-lab/monocle3 \
 theislab/kBET \
+NathanSkene/EWCE \
 jlmelville/uwot \
 hhoeflin/hdf5r \
 ropensci/bib2df \
 cvarrichio/Matrix.utils
 
+# install older version of rliger
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
-install2.r -e -t source \
-rliger
+Rscript -e 'remotes::install_version("rliger", version = "1.0.1", repos = "http://cran.r-project.org")'
 
 ## Install scFlow package
-# Copy description
 WORKDIR scFlow
-
 # Run R CMD check, install package from source - will fail with any errors or warnings
 RUN --mount=type=bind,target=.,source=. \
-Rscript -e "devtools::check(vignettes = FALSE)" \
-&& Rscript -e "remotes::install_local()"
+Rscript -e "devtools::check(vignettes = FALSE)"
+
+RUN --mount=type=bind,target=.,source=. \
+Rscript -e 'remotes::install_local(upgrade = "never")'
 
 FROM scratch AS release
 COPY --from=build / /

@@ -86,7 +86,7 @@ Imports:
     qs,
     R.utils,
     rlang (>= 1.0.6),
-    rliger,
+    rliger (< 1.99.0),
     rmarkdown (>= 2.18),
     Rtsne (>= 0.16),
     scales,
