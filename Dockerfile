@@ -2,7 +2,7 @@
 
 ## Use rstudio installs binaries from RStudio's RSPM service by default,
 ## Uses the latest stable ubuntu, R and Bioconductor versions. Created on unbuntu 20.04, R 4.3 and BiocManager 3.18
-FROM rocker/rstudio:4.3 AS build
+FROM rocker/rstudio:4.3 AS base
 
 ## Re-enable apt cache to use cache mounts
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
@@ -28,13 +28,15 @@ RUN --mount=type=cache,target=/var/cache/apt \
         libssl-dev \
         libxml2-dev \
         make \
-        pandoc \
+        pandoc \ 
+        patch \
         perl \
         python3 \
         zlib1g-dev \
         pip \
         curl \
         unzip \
+        qpdf \
 	&& rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -47,7 +49,6 @@ pip install stratocumulus \
 && ./aws/install \
 && rm -rf awscliv2.zip install.sh /tmp/*
 
-
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
 install2.r -e -n -1 -s \
 Matrix \
@@ -55,7 +56,6 @@ argparse \
 assertthat \
 BiocManager \
 cli \
-covr \
 cowplot \
 data.table \
 devtools \
@@ -83,10 +83,10 @@ magrittr \
 lme4 \
 igraph \
 paletteer \
-patchwork \
 plyr \
 prettydoc \
 purrr \
+qpdf \
 qs \
 R.utils \
 RANN \
@@ -116,17 +116,13 @@ tidyverse \
 UpSetR \
 utils \
 vroom \
-WebGestaltR \
-apcluster
+WebGestaltR
 
 ## Install Bioconductor packages
 COPY ./misc/requirements-bioc.R .
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
 Rscript -e 'requireNamespace("BiocManager"); BiocManager::install(ask=F);' \
 && Rscript requirements-bioc.R
-
-RUN --mount=type=cache,target=/var/cache/apt \
-apt-get update && apt-get install -y --no-install-recommends patch
 
 ## Install from GH the following
 RUN --mount=type=cache,target=/tmp/downloaded_packages \
@@ -154,5 +150,22 @@ Rscript -e "devtools::check(vignettes = FALSE)"
 RUN --mount=type=bind,target=.,source=. \
 Rscript -e 'remotes::install_local(upgrade = "never")'
 
-FROM scratch AS release
-COPY --from=build / /
+# -----------------------------------------------------------------------------
+
+FROM base AS minified 
+
+RUN Rscript -e ' remove.packages(c( \
+"apcluster", \
+"patchwork", \
+"spelling", \
+"BiocStyle"))'
+
+RUN rm -rf /usr/lib/rstudio-server/bin/*
+
+RUN apt-get -y purge cmake make qpdf pip rstudio-server patch \
+&& apt-get -y autoremove \
+&& apt-get -y autoclean
+
+FROM scratch AS squash
+COPY --from=minified / /
+CMD ["bash"]
