@@ -3,4 +3,5 @@
 .RData
 .dockerignore
 .gitignore
+.git
 Dockerfile

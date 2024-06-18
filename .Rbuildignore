@@ -16,3 +16,4 @@
 ^\.github$
 ^Dockerfile$
 ^.dockerignore$
+^docker-bake.hcl$

@@ -7,5 +7,5 @@ target "minified" {
 }
 target "with_dev_tools" {
     tags = ["my_scflow/with_dev_tools"]
-    target = "base"
+    target = "with_dev_tools"
 }
