@@ -5,3 +5,4 @@
 .gitignore
 .git
 Dockerfile
+docker-bake.hcl
