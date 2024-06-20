@@ -1,3 +1,7 @@
+(fork created as part of the submission for my final year university project - "scFlow: Optimizing Software Engineering Practices for Modular and Extensible Bioinformatics Pipelines")
+
+This fork of [https://github.com/combiz/scFlow](https://github.com/combiz/scFlow) was uesd to test the Docker build optimisation techniques described in sections 5.2 and 6.1.2 of the project report.
+
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
 <img src="man/figures/logo.png" width=200 style="align:left;" />
